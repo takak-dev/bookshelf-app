@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\GenreController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,7 +19,7 @@ Route::redirect('/', '/books');
 Route::resource('books', BookController::class);
 
 // 後続Issueの確定ルート（URI・名前は固定。各Issueで本実装に置換）
-Route::get('/genres', fn () => abort(404))->name('genres.index');                      // #5
+Route::resource('genres', GenreController::class);     // #5
 Route::post('/books/{book}/reviews', fn () => abort(404))->name('reviews.store');       // #6
 Route::get('/reviews/{review}/edit', fn () => abort(404))->name('reviews.edit');        // #6
 Route::delete('/reviews/{review}', fn () => abort(404))->name('reviews.destroy');       // #6
