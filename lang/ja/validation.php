@@ -19,6 +19,9 @@ return [
         'string' => ':attributeは:min文字以上で入力してください。',
         'array' => ':attributeは:min個以上選択してください。',
     ],
+    'between' => [
+        'numeric' => ':attributeは:min〜:maxの範囲で指定してください。',
+        'string' => ':attributeは:min〜:max文字で入力してください。'],
 
     'attributes' => [
         'name' => '名前',
@@ -31,5 +34,7 @@ return [
         'description' => '説明',
         'image_url' => '画像URL',
         'genres' => 'ジャンル',
+        'rating' => '評価',
+        'comment' => 'コメント',
     ],
 ];
