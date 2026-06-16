@@ -3,6 +3,7 @@
 use App\Http\Controllers\BookController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\GenreController;
+use App\Http\Controllers\LikeController;
 use App\Http\Controllers\ReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,7 +32,9 @@ Route::resource('books.reviews', ReviewController::class)
 Route::get('/favorites', [FavoriteController::class, 'index'])
     ->name('favorites.index');
 Route::post('/books/{book}/favorite', [FavoriteController::class, 'toggle'])
-    ->name('favorites.toggle');
+    ->name('favorites.toggle'); // 7
 
-Route::post('/reviews/{review}/like', fn () => abort(404))->name('reviews.like');       // #8
+Route::post('/reviews/{review}/like', [LikeController::class, 'toggle'])
+    ->name('reviews.like');       // #8
+
 Route::get('/ranking', fn () => abort(404))->name('ranking.index');                     // #9
