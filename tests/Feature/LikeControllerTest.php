@@ -11,6 +11,7 @@ class LikeControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    // いいねは認証必須（未認証は /login へ）
     public function test_guest_is_redirected_to_login(): void
     {
         $review = Review::factory()->create();
@@ -18,6 +19,7 @@ class LikeControllerTest extends TestCase
         $this->post(route('reviews.like', $review))->assertRedirect('/login');
     }
 
+    // 他人のレビューへのいいねは 追加 → 解除 が切り替わる
     public function test_toggle_adds_then_removes_like(): void
     {
         $user = User::factory()->create();
@@ -32,6 +34,7 @@ class LikeControllerTest extends TestCase
         $this->assertDatabaseMissing('review_likes', ['user_id' => $user->id, 'review_id' => $review->id]);
     }
 
+    // 自分のレビューにはいいねできない（エラー＆いいね行は作られない）
     public function test_cannot_like_own_review(): void
     {
         $user = User::factory()->create();

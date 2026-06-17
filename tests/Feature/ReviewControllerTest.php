@@ -21,6 +21,7 @@ class ReviewControllerTest extends TestCase
         return array_merge(['rating' => 4, 'comment' => '面白かった。'], $overrides);
     }
 
+    // 未認証でレビュー投稿しようとすると /login へリダイレクト
     public function test_guest_is_redirected_from_store_to_login(): void
     {
         $book = Book::factory()->create();
@@ -29,6 +30,7 @@ class ReviewControllerTest extends TestCase
             ->assertRedirect('/login');
     }
 
+    // 他人が登録した書籍にはレビューを投稿でき、書籍詳細へリダイレクト
     public function test_user_can_review_others_book(): void
     {
         $book = Book::factory()->create(); // 別ユーザー所有
@@ -45,6 +47,7 @@ class ReviewControllerTest extends TestCase
         ]);
     }
 
+    // 自分が登録した書籍にはレビューできない（自己レビュー禁止）
     public function test_cannot_review_own_book(): void
     {
         $user = User::factory()->create();
@@ -57,6 +60,7 @@ class ReviewControllerTest extends TestCase
         $this->assertDatabaseCount('reviews', 0);
     }
 
+    // 同じ書籍へ2回目のレビューはできない（1ユーザー1書籍1件）
     public function test_cannot_review_same_book_twice(): void
     {
         $book = Book::factory()->create();
@@ -70,6 +74,7 @@ class ReviewControllerTest extends TestCase
         $this->assertDatabaseCount('reviews', 1);
     }
 
+    // rating・comment は必須（未入力はバリデーションエラー）
     public function test_store_requires_rating_and_comment(): void
     {
         $book = Book::factory()->create();
@@ -79,6 +84,7 @@ class ReviewControllerTest extends TestCase
             ->assertSessionHasErrors(['rating', 'comment']);
     }
 
+    // rating は1〜5の範囲（範囲外はエラー）
     public function test_rating_must_be_between_1_and_5(): void
     {
         $book = Book::factory()->create();
@@ -88,6 +94,7 @@ class ReviewControllerTest extends TestCase
             ->assertSessionHasErrors('rating');
     }
 
+    // 投稿者でない人がレビュー編集画面に来ると 403
     public function test_non_author_gets_403_on_edit(): void
     {
         $review = Review::factory()->create();
@@ -97,6 +104,7 @@ class ReviewControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    // 投稿者は更新でき、元の書籍詳細へリダイレクト
     public function test_author_can_update_and_is_redirected_to_book_show(): void
     {
         $user = User::factory()->create();
@@ -109,6 +117,7 @@ class ReviewControllerTest extends TestCase
         $this->assertDatabaseHas('reviews', ['id' => $review->id, 'rating' => 5, 'comment' => '更新後のコメント']);
     }
 
+    // 投稿者でない人はレビューを削除できない（403）
     public function test_non_author_cannot_delete(): void
     {
         $review = Review::factory()->create();
@@ -118,6 +127,7 @@ class ReviewControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    // 投稿者はレビューを削除でき、元の書籍詳細へリダイレクト
     public function test_author_can_delete(): void
     {
         $user = User::factory()->create();

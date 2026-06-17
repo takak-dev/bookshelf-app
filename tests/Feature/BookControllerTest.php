@@ -12,6 +12,7 @@ class BookControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    // 一覧は公開で、1ページ10件のページネーションになる
     public function test_index_is_public_and_paginates_10(): void
     {
         Book::factory()->count(12)->create();
@@ -22,6 +23,7 @@ class BookControllerTest extends TestCase
         $response->assertViewHas('books', fn ($books) => $books->count() === 10);
     }
 
+    // 書籍詳細は公開（ゲストも閲覧可）
     public function test_show_is_public(): void
     {
         $book = Book::factory()->create();
@@ -29,11 +31,13 @@ class BookControllerTest extends TestCase
         $this->get(route('books.show', $book))->assertOk();
     }
 
+    // 未認証で登録画面に来ると /login へリダイレクトされる
     public function test_guest_is_redirected_from_create_to_login(): void
     {
         $this->get(route('books.create'))->assertRedirect('/login');
     }
 
+    // 認証ユーザーは登録画面を表示できる
     public function test_auth_user_can_view_create(): void
     {
         $this->actingAs(User::factory()->create())
@@ -41,6 +45,7 @@ class BookControllerTest extends TestCase
             ->assertOk();
     }
 
+    // 認証ユーザーは書籍を登録でき、選択ジャンルが紐付く（登録者は認証ユーザー）
     public function test_auth_user_can_store_book_with_genres(): void
     {
         $user = User::factory()->create();
@@ -63,6 +68,7 @@ class BookControllerTest extends TestCase
         $this->assertEqualsCanonicalizing($genres->pluck('id')->all(), $book->genres->pluck('id')->all());
     }
 
+    // タイトル未入力では登録できずバリデーションエラーになる
     public function test_store_requires_title(): void
     {
         $genre = Genre::factory()->create();
@@ -80,6 +86,7 @@ class BookControllerTest extends TestCase
         $this->assertDatabaseCount('books', 0);
     }
 
+    // user_id をリクエストに混ぜても無視され、登録者は認証ユーザーになる（なりすまし防止）
     public function test_owner_field_cannot_be_overridden_by_request(): void
     {
         $user = User::factory()->create();
@@ -98,6 +105,7 @@ class BookControllerTest extends TestCase
         $this->assertDatabaseHas('books', ['isbn' => '9781234567897', 'user_id' => $user->id]);
     }
 
+    // 作成者でない人が編集画面に来ると 403
     public function test_non_owner_gets_403_on_edit(): void
     {
         $book = Book::factory()->create();
@@ -107,6 +115,7 @@ class BookControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    // 作成者は更新でき、書籍詳細へリダイレクトされる
     public function test_owner_can_update_and_is_redirected_to_show(): void
     {
         $owner = User::factory()->create();
@@ -125,6 +134,7 @@ class BookControllerTest extends TestCase
         $this->assertDatabaseHas('books', ['id' => $book->id, 'title' => '更新後']);
     }
 
+    // 作成者でない人は削除できない（403）
     public function test_non_owner_cannot_delete(): void
     {
         $book = Book::factory()->create();
@@ -134,6 +144,7 @@ class BookControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    // 作成者は削除でき、一覧へリダイレクトされる
     public function test_owner_can_delete_and_is_redirected_to_index(): void
     {
         $owner = User::factory()->create();

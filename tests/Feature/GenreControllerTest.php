@@ -12,11 +12,13 @@ class GenreControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    // ジャンル一覧は認証必須（未認証は /login へ）
     public function test_guest_is_redirected_from_index_to_login(): void
     {
         $this->get(route('genres.index'))->assertRedirect('/login');
     }
 
+    // 一覧に各ジャンルの書籍数（books_count）が表示される
     public function test_index_shows_book_count(): void
     {
         $genre = Genre::factory()->create();
@@ -28,6 +30,7 @@ class GenreControllerTest extends TestCase
             ->assertViewHas('genres', fn ($genres) => $genres->firstWhere('id', $genre->id)->books_count === 2);
     }
 
+    // 認証ユーザーはジャンルを登録でき、一覧へリダイレクトされる
     public function test_auth_user_can_store_genre(): void
     {
         $this->actingAs(User::factory()->create())
@@ -37,6 +40,7 @@ class GenreControllerTest extends TestCase
         $this->assertDatabaseHas('genres', ['name' => '新ジャンル']);
     }
 
+    // ジャンル名は一意（重複名は登録不可）
     public function test_genre_name_must_be_unique(): void
     {
         Genre::factory()->create(['name' => '小説']);
@@ -48,6 +52,7 @@ class GenreControllerTest extends TestCase
         $this->assertDatabaseCount('genres', 1);
     }
 
+    // 更新時、自分自身と同じ名前のままなら一意制約に引っかからず更新できる
     public function test_update_allows_keeping_same_name(): void
     {
         $genre = Genre::factory()->create(['name' => '技術書']);
@@ -59,6 +64,7 @@ class GenreControllerTest extends TestCase
         $this->assertDatabaseHas('genres', ['id' => $genre->id, 'name' => '技術書']);
     }
 
+    // ジャンル詳細では紐づく書籍が1ページ10件で表示される
     public function test_show_paginates_attached_books_10(): void
     {
         $genre = Genre::factory()->create();
@@ -70,6 +76,7 @@ class GenreControllerTest extends TestCase
             ->assertViewHas('books', fn ($books) => $books->count() === 10);
     }
 
+    // 紐づく書籍があるジャンルは削除拒否＋エラーフラッシュ（削除されない）
     public function test_destroy_is_rejected_when_genre_has_books(): void
     {
         $genre = Genre::factory()->create();
@@ -83,6 +90,7 @@ class GenreControllerTest extends TestCase
         $this->assertDatabaseHas('genres', ['id' => $genre->id]);
     }
 
+    // 紐づく書籍が無いジャンルは削除できる
     public function test_destroy_succeeds_when_genre_has_no_books(): void
     {
         $genre = Genre::factory()->create();
