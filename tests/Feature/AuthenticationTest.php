@@ -10,6 +10,7 @@ class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;
 
+    // ログアウトするとセッションが破棄され、/login へリダイレクトされる
     public function test_logout_redirects_to_login(): void
     {
         $user = User::factory()->create();
@@ -20,6 +21,7 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    // 正しい入力で会員登録でき、認証状態になりユーザーがDBに保存される
     public function test_user_can_register(): void
     {
         $response = $this->post('/register', [
@@ -34,6 +36,7 @@ class AuthenticationTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'newuser@example.com']);
     }
 
+    // 名前が空だと登録できず name のバリデーションエラーになる（未認証のまま）
     public function test_registration_requires_name(): void
     {
         $response = $this->post('/register', [
@@ -47,6 +50,7 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    // 既に使われているメールアドレスでは登録できない（email の一意制約）
     public function test_email_must_be_unique(): void
     {
         User::factory()->create(['email' => 'dup@example.com']);
@@ -61,6 +65,7 @@ class AuthenticationTest extends TestCase
         $response->assertSessionHasErrors('email');
     }
 
+    // 正しいメール・パスワードでログインでき、その本人として認証される
     public function test_user_can_login(): void
     {
         $user = User::factory()->create();
@@ -74,6 +79,7 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    // 誤ったパスワードではログインに失敗し、エラー＋未認証になる
     public function test_login_fails_with_wrong_password(): void
     {
         $user = User::factory()->create();

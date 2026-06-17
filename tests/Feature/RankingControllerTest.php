@@ -11,11 +11,13 @@ class RankingControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    // ランキングは公開ページ（ゲストも閲覧可）
     public function test_ranking_is_public(): void
     {
         $this->get(route('ranking.index'))->assertOk();
     }
 
+    // レビューが1件も無い書籍はランキングから除外される
     public function test_excludes_books_without_reviews(): void
     {
         $reviewed = Book::factory()->create();
@@ -26,6 +28,7 @@ class RankingControllerTest extends TestCase
             ->assertViewHas('rankedBooks', fn ($books) => $books->contains($reviewed) && ! $books->contains($noReviews));
     }
 
+    // 平均評価の高い順に並ぶ
     public function test_ordered_by_average_rating_desc(): void
     {
         $low = Book::factory()->create();
@@ -38,6 +41,7 @@ class RankingControllerTest extends TestCase
             ->assertViewHas('rankedBooks', fn ($books) => $books->first()->is($high) && $books->last()->is($low));
     }
 
+    // 平均評価が同点なら、レビュー件数が多い方が上位（タイブレーク）
     public function test_tiebreak_by_review_count_when_average_is_equal(): void
     {
         // 平均評価はどちらも 5。レビュー件数が多い方を上位にする。
@@ -51,6 +55,7 @@ class RankingControllerTest extends TestCase
             ->assertViewHas('rankedBooks', fn ($books) => $books->first()->is($more));
     }
 
+    // 上位10件までに制限される（TOP10）
     public function test_limited_to_top_10(): void
     {
         Book::factory()->count(12)->create()->each(

@@ -13,6 +13,7 @@ class BookApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    // 一覧APIは1ページ20件で、各書籍に集計値（平均評価・レビュー件数・ジャンル）を含む
     public function test_index_returns_paginated_books_with_aggregates(): void
     {
         Book::factory()->count(25)->create();
@@ -27,6 +28,7 @@ class BookApiTest extends TestCase
             ]);
     }
 
+    // 一覧では reviews 配列は含めない（詳細でのみ返す）
     public function test_index_does_not_include_reviews_array(): void
     {
         $book = Book::factory()->create();
@@ -37,6 +39,7 @@ class BookApiTest extends TestCase
             ->assertJsonMissingPath('data.0.reviews');
     }
 
+    // keyword でタイトル/著者の部分一致検索ができる
     public function test_index_filters_by_keyword(): void
     {
         Book::factory()->create(['title' => 'ユニークタイトルABC', 'author' => 'X']);
@@ -48,6 +51,7 @@ class BookApiTest extends TestCase
             ->assertJsonPath('data.0.title', 'ユニークタイトルABC');
     }
 
+    // genre 指定でジャンル絞り込みができる
     public function test_index_filters_by_genre(): void
     {
         $genre = Genre::factory()->create();
@@ -59,6 +63,7 @@ class BookApiTest extends TestCase
             ->assertJsonCount(1, 'data');
     }
 
+    // per_page で1ページ件数を指定できる
     public function test_index_respects_per_page(): void
     {
         Book::factory()->count(10)->create();
@@ -68,6 +73,7 @@ class BookApiTest extends TestCase
             ->assertJsonCount(5, 'data');
     }
 
+    // 検索パラメータも検証する（per_page 上限超過は 422）
     public function test_index_validates_search_params(): void
     {
         $this->getJson('/api/v1/books?per_page=999')
@@ -75,6 +81,7 @@ class BookApiTest extends TestCase
             ->assertJsonValidationErrors('per_page');
     }
 
+    // 詳細APIはジャンルとレビュー（投稿者名・コメント等）を含む
     public function test_show_returns_book_with_reviews(): void
     {
         $book = Book::factory()->create();
@@ -87,11 +94,13 @@ class BookApiTest extends TestCase
             ->assertJsonPath('data.reviews.0.user_name', $review->user->name);
     }
 
+    // 存在しない書籍IDは 404 を返す
     public function test_show_returns_404_for_missing_book(): void
     {
         $this->getJson('/api/v1/books/999999')->assertNotFound();
     }
 
+    // 登録APIは書籍を作成し 201 を返す（user_id は実在ユーザー）
     public function test_store_creates_book_and_returns_201(): void
     {
         $user = User::factory()->create();
@@ -111,6 +120,7 @@ class BookApiTest extends TestCase
         $this->assertDatabaseHas('books', ['isbn' => '9781234567897', 'user_id' => $user->id]);
     }
 
+    // 登録APIは user_id の実在を検証する（存在しなければ 422）
     public function test_store_validates_user_id_exists(): void
     {
         $genre = Genre::factory()->create();
@@ -127,6 +137,7 @@ class BookApiTest extends TestCase
             ->assertJsonValidationErrors('user_id');
     }
 
+    // 登録APIはタイトル必須（未入力は 422）
     public function test_store_requires_title(): void
     {
         $user = User::factory()->create();
@@ -144,6 +155,7 @@ class BookApiTest extends TestCase
             ->assertJsonValidationErrors('title');
     }
 
+    // 更新APIは自身のISBNを保持したまま更新できる（一意制約の自身除外）
     public function test_update_allows_keeping_same_isbn(): void
     {
         $user = User::factory()->create();
@@ -162,6 +174,7 @@ class BookApiTest extends TestCase
             ->assertJsonPath('data.title', '更新後');
     }
 
+    // 削除APIは 204（No Content）を返し、書籍が消える
     public function test_destroy_returns_204(): void
     {
         $book = Book::factory()->create();
