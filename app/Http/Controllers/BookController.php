@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\SearchBookRequest;
 use App\Http\Requests\StoreBookRequest;
 use App\Http\Requests\UpdateBookRequest;
 use App\Models\Book;
@@ -16,11 +17,42 @@ class BookController extends Controller
         $this->middleware('auth')->except(['index', 'show']);
     }
 
-    public function index(): View
+    public function index(SearchBookRequest $request): View
     {
-        $books = Book::with('genres')->latest()->paginate(10);
+        $filters = $request->validated();
+        $sort = $filters['sort'] ?? 'newest';
 
-        return view('books.index', compact('books'));
+        $query = Book::query()
+            ->with('genres')
+            ->withAvg('reviews', 'rating')
+            ->when(
+                $filters['keyword'] ?? null,
+                fn ($query, $keyword) => $query->where(
+                    fn ($query) => $query
+                        ->where('title', 'like', "%{$keyword}%")
+                        ->orWhere('author', 'like', "%{$keyword}%")
+                )
+            )
+            ->when(
+                $filters['genre'] ?? null,
+                fn ($query, $genre) => $query->whereHas(
+                    'genres',
+                    fn ($query) => $query->where('genres.id', $genre)
+                )
+            );
+
+        match ($sort) {
+            'newest' => $query->latest(),
+            'oldest' => $query->oldest(),
+            'title' => $query->orderBy('title'),
+            'rating' => $query->orderByDesc('reviews_avg_rating'),// MySQLはDESCでNULL最後
+            default => $query->latest(),// 正規化済みだが安全網として残す
+        };
+
+        $books = $query->paginate(10)->appends($filters); // 検索条件(keyword/genre)をページネーションリンクへ引き継ぐ
+        $genres = Genre::orderBy('name')->get();
+
+        return view('books.index', compact('books', 'genres'));
     }
 
     public function create(): View
