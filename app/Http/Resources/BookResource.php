@@ -19,7 +19,7 @@ class BookResource extends JsonResource
             'title' => $this->title,
             'author' => $this->author,
             'isbn' => $this->isbn,
-            'published_date' => $this->published_date,
+            'published_date' => $this->published_date?->format('Y-m-d'), // 日付を文字列に変換（null 安全演算子）
             'description' => $this->description,
             'image_url' => $this->image_url,
             'average_rating' => $this->reviews_avg_rating !== null ? round((float) $this->reviews_avg_rating, 2) : null, // withAvg の別名を小数2桁に整形

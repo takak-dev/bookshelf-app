@@ -40,3 +40,7 @@ Route::post('/reviews/{review}/like', [LikeController::class, 'toggle'])
 
 Route::get('/ranking', [RankingController::class, 'index'])
     ->name('ranking.index');                     // #9
+
+Route::get('/reports', fn () => abort(404))->name('reports.index');             // #16
+Route::get('/reading-plans', fn () => abort(404))->name('reading-plans.index'); // #18
+Route::get('/notifications', fn () => abort(404))->name('notifications.index'); // #18
