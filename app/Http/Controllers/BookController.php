@@ -7,6 +7,8 @@ use App\Http\Requests\StoreBookRequest;
 use App\Http\Requests\UpdateBookRequest;
 use App\Models\Book;
 use App\Models\Genre;
+use App\Services\GoogleBooksClient;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -53,6 +55,23 @@ class BookController extends Controller
         $genres = Genre::orderBy('name')->get();
 
         return view('books.index', compact('books', 'genres'));
+    }
+
+    public function fetchByIsbn(string $isbn, GoogleBooksClient $client): JsonResponse
+    {
+        // サーバ側でも13桁数字を担保（Bladeのクライアント検証の防御的バックアップ）
+        if (! preg_match('/^\d{13}$/', $isbn)) {
+            return response()->json(['error' => 'ISBNは13桁の数字で入力してください。'], 422);
+        }
+
+        $book = $client->findByIsbn($isbn);
+
+        // 該当なし・取得失敗：エラー画面に遷移せず、Bladeがインライン表示（Q55）
+        if ($book === null) {
+            return response()->json(['error' => '該当する書籍が見つかりませんでした。']);
+        }
+
+        return response()->json($book);
     }
 
     public function create(): View
