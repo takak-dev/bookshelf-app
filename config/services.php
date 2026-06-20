@@ -31,4 +31,9 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'google_books' => [
+        'endpoint' => env('GOOGLE_BOOKS_ENDPOINT', 'https://www.googleapis.com/books/v1/volumes'),
+        'key' => env('GOOGLE_BOOKS_KEY'), // 任意。無キーでも動作（点55d）
+    ],
+
 ];

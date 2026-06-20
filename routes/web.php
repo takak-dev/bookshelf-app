@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::redirect('/', '/books');
+Route::get('/books/isbn/{isbn}', [BookController::class, 'fetchByIsbn'])->name('books.isbn');
 Route::resource('books', BookController::class);
 
 // 後続Issueの確定ルート（URI・名前は固定。各Issueで本実装に置換）
