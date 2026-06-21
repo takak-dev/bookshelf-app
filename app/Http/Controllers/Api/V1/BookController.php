@@ -48,9 +48,9 @@ class BookController extends Controller
     public function store(BookApiRequest $request): JsonResponse
     {
         $validated = $request->validated();
-        // 基本APIは認証なしのため登録者IDをリクエストで受け取り exists で検証（PM#39。応用でSanctum認証ユーザーに変更）
-        $book = DB::transaction(function () use ($validated) {
-            $book = Book::create($validated);
+        // 登録者は Sanctum 認証ユーザー（user_id 詐称不可・PM#39）
+        $book = DB::transaction(function () use ($request, $validated) {
+            $book = $request->user()->books()->create($validated);
             $book->genres()->sync($validated['genres']); // genres は books カラムでないため create では無視され、ここで中間テーブルへ同期
 
             return $book;
@@ -74,6 +74,7 @@ class BookController extends Controller
      */
     public function update(BookApiRequest $request, Book $book): BookResource
     {
+        $this->authorize('update', $book); // BookPolicy：非所有者は403
         $validated = $request->validated();
 
         DB::transaction(function () use ($book, $validated) {
@@ -89,6 +90,7 @@ class BookController extends Controller
      */
     public function destroy(Book $book): Response
     {
+        $this->authorize('delete', $book); // BookPolicy：非所有者は403
         $book->delete();
 
         return response()->noContent();
