@@ -7,11 +7,14 @@ use App\Models\Genre;
 use App\Models\Review;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class BookApiTest extends TestCase
 {
     use RefreshDatabase;
+
+    // ===== 読み取り（公開・認証不要） =====
 
     // 一覧APIは1ページ20件で、各書籍に集計値（平均評価・レビュー件数・ジャンル）を含む
     public function test_index_returns_paginated_books_with_aggregates(): void
@@ -100,14 +103,16 @@ class BookApiTest extends TestCase
         $this->getJson('/api/v1/books/999999')->assertNotFound();
     }
 
-    // 登録APIは書籍を作成し 201 を返す（user_id は実在ユーザー）
-    public function test_store_creates_book_and_returns_201(): void
+    // ===== 書き込み（Sanctum 認証必須） =====
+
+    // 登録APIは認証ユーザーを所有者として書籍を作成し 201 を返す
+    public function test_store_creates_book_for_authenticated_user(): void
     {
         $user = User::factory()->create();
         $genre = Genre::factory()->create();
+        Sanctum::actingAs($user);
 
         $this->postJson('/api/v1/books', [
-            'user_id' => $user->id,
             'title' => 'API本',
             'author' => '著者',
             'isbn' => '9781234567897',
@@ -117,70 +122,99 @@ class BookApiTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('data.title', 'API本');
 
+        // 所有者は認証ユーザー（リクエスト値ではなくトークンから付与）
         $this->assertDatabaseHas('books', ['isbn' => '9781234567897', 'user_id' => $user->id]);
     }
 
-    // 登録APIは user_id の実在を検証する（存在しなければ 422）
-    public function test_store_validates_user_id_exists(): void
+    // 未認証の登録は 401
+    public function test_store_requires_authentication(): void
     {
         $genre = Genre::factory()->create();
 
         $this->postJson('/api/v1/books', [
-            'user_id' => 999999, // 存在しないユーザー
-            'title' => 'x',
-            'author' => 'y',
-            'isbn' => '9781234567897',
-            'published_date' => '2020-01-01',
-            'genres' => [$genre->id],
-        ])
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('user_id');
+            'title' => 'x', 'author' => 'y', 'isbn' => '9781234567897',
+            'published_date' => '2020-01-01', 'genres' => [$genre->id],
+        ])->assertUnauthorized(); // 401
     }
 
     // 登録APIはタイトル必須（未入力は 422）
     public function test_store_requires_title(): void
     {
-        $user = User::factory()->create();
+        Sanctum::actingAs(User::factory()->create());
         $genre = Genre::factory()->create();
 
         $this->postJson('/api/v1/books', [
-            'user_id' => $user->id,
-            'title' => '',
-            'author' => 'y',
-            'isbn' => '9781234567897',
-            'published_date' => '2020-01-01',
-            'genres' => [$genre->id],
+            'title' => '', 'author' => 'y', 'isbn' => '9781234567897',
+            'published_date' => '2020-01-01', 'genres' => [$genre->id],
         ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('title');
     }
 
-    // 更新APIは自身のISBNを保持したまま更新できる（一意制約の自身除外）
-    public function test_update_allows_keeping_same_isbn(): void
+    // 所有者は自身のISBNを保持したまま更新できる
+    public function test_update_by_owner_succeeds(): void
     {
         $user = User::factory()->create();
         $genre = Genre::factory()->create();
-        $book = Book::factory()->create();
+        $book = Book::factory()->create(['user_id' => $user->id]);
+        Sanctum::actingAs($user);
 
         $this->putJson("/api/v1/books/{$book->id}", [
-            'user_id' => $user->id,
-            'title' => '更新後',
-            'author' => 'y',
-            'isbn' => $book->isbn, // 自身のISBNは一意制約から除外される
-            'published_date' => '2021-01-01',
-            'genres' => [$genre->id],
+            'title' => '更新後', 'author' => 'y', 'isbn' => $book->isbn,
+            'published_date' => '2021-01-01', 'genres' => [$genre->id],
         ])
             ->assertOk()
             ->assertJsonPath('data.title', '更新後');
     }
 
-    // 削除APIは 204（No Content）を返し、書籍が消える
-    public function test_destroy_returns_204(): void
+    // 他人の書籍の更新は 403（BookPolicy）
+    public function test_update_by_non_owner_is_forbidden(): void
+    {
+        $owner = User::factory()->create();
+        $genre = Genre::factory()->create();
+        $book = Book::factory()->create(['user_id' => $owner->id]);
+        Sanctum::actingAs(User::factory()->create()); // 別ユーザー
+
+        $this->putJson("/api/v1/books/{$book->id}", [
+            'title' => '不正更新', 'author' => 'y', 'isbn' => $book->isbn,
+            'published_date' => '2021-01-01', 'genres' => [$genre->id],
+        ])->assertForbidden(); // 403
+    }
+
+    // 未認証の更新は 401
+    public function test_update_requires_authentication(): void
     {
         $book = Book::factory()->create();
 
-        $this->deleteJson("/api/v1/books/{$book->id}")->assertNoContent();
+        $this->putJson("/api/v1/books/{$book->id}", [])->assertUnauthorized();
+    }
 
+    // 所有者は削除でき 204 を返す
+    public function test_destroy_by_owner_succeeds(): void
+    {
+        $user = User::factory()->create();
+        $book = Book::factory()->create(['user_id' => $user->id]);
+        Sanctum::actingAs($user);
+
+        $this->deleteJson("/api/v1/books/{$book->id}")->assertNoContent();
         $this->assertDatabaseMissing('books', ['id' => $book->id]);
+    }
+
+    // 他人の書籍の削除は 403（BookPolicy）
+    public function test_destroy_by_non_owner_is_forbidden(): void
+    {
+        $book = Book::factory()->create(['user_id' => User::factory()->create()->id]);
+        Sanctum::actingAs(User::factory()->create()); // 別ユーザー
+
+        $this->deleteJson("/api/v1/books/{$book->id}")->assertForbidden();
+        $this->assertDatabaseHas('books', ['id' => $book->id]);
+    }
+
+    // 未認証の削除は 401
+    public function test_destroy_requires_authentication(): void
+    {
+        $book = Book::factory()->create();
+
+        $this->deleteJson("/api/v1/books/{$book->id}")->assertUnauthorized();
     }
 }

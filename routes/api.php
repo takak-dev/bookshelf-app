@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\BookController;
+use App\Http\Controllers\Api\V1\TokenController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -15,5 +16,14 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1')->group(function () {
-    Route::apiResource('books', BookController::class);
+    // トークン発行（メール/パスワード → Bearerトークン）総当たり緩和で6回/分
+    Route::post('tokens', [TokenController::class, 'store'])->middleware('throttle:6,1');
+
+    // 公開（読み取り）
+    Route::apiResource('books', BookController::class)->only(['index', 'show']);
+
+    // 認証必須（書き込み）。Sanctumトークン＋BookPolicyで所有者のみ
+    Route::apiResource('books', BookController::class)
+        ->only(['store', 'update', 'destroy'])
+        ->middleware('auth:sanctum');
 });
