@@ -4,7 +4,9 @@ use App\Http\Controllers\BookController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\GenreController;
 use App\Http\Controllers\LikeController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\RankingController;
+use App\Http\Controllers\ReadingPlanController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReviewController;
 use Illuminate\Support\Facades\Route;
@@ -44,5 +46,10 @@ Route::get('/ranking', [RankingController::class, 'index'])
     ->name('ranking.index');                     // #9
 
 Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');             // #16
-Route::get('/reading-plans', fn () => abort(404))->name('reading-plans.index'); // #18
-Route::get('/notifications', fn () => abort(404))->name('notifications.index'); // #18
+Route::resource('reading-plans', ReadingPlanController::class)
+    ->parameters(['reading-plans' => 'plan'])
+    ->except(['show']); // #35（show は要件に無い）
+Route::post('/reading-plans/{plan}/complete', [ReadingPlanController::class, 'complete'])
+    ->name('reading-plans.complete');
+Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
