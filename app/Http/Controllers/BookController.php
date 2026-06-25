@@ -47,7 +47,8 @@ class BookController extends Controller
             'newest' => $query->latest(),
             'oldest' => $query->oldest(),
             'title' => $query->orderBy('title'),
-            'rating' => $query->orderByDesc('reviews_avg_rating'),// MySQLはDESCでNULL最後
+            // レビュー無し(NULL)を最後に。IS NULL 順で MySQL/Postgres 両対応（MySQL挙動は不変）
+            'rating' => $query->orderByRaw('reviews_avg_rating IS NULL')->orderByDesc('reviews_avg_rating'),
             default => $query->latest(),// 正規化済みだが安全網として残す
         };
 

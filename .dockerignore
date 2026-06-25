@@ -1,0 +1,15 @@
+/vendor
+/node_modules
+/.git
+/.github
+.env
+.env.*
+/tests
+/.idea
+/.vscode
+/.claude
+/docs
+/storage/logs/*.log
+/public/build
+npm-debug.log
+yarn-error.log
