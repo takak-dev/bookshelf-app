@@ -4,6 +4,8 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
+    region: singapore            # 日本最寄り（無料プランで選択可）
+    healthCheckPath: /books       # Laravel10は /up 非対応・/ は302のため200が返る公開ページを指定
     envVars:
       - key: APP_ENV
         value: production
@@ -43,5 +45,6 @@ services:
 databases:
   - name: bookshelf-db
     plan: free
+    region: singapore            # Web サービスと同一リージョンに揃える（レイテンシ低減）
     databaseName: bookshelf
     user: bookshelf
