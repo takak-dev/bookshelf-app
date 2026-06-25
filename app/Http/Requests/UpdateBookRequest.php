@@ -12,7 +12,8 @@ class UpdateBookRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // 認可はコントローラの $this->authorize('update', $book)（BookPolicy）
+        // 認可をバリデーションより前に評価（非所有者は検証前に403）
+        return $this->user()?->can('update', $this->route('book')) ?? false;
     }
 
     /**

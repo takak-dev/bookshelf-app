@@ -181,6 +181,18 @@ class BookApiTest extends TestCase
         ])->assertForbidden(); // 403
     }
 
+    // 非所有者は入力が不正でも 422 でなく 403（認可がバリデーションより先に効く）
+    public function test_update_by_non_owner_is_forbidden_even_with_invalid_input(): void
+    {
+        $book = Book::factory()->create(['user_id' => User::factory()->create()->id]);
+        Sanctum::actingAs(User::factory()->create()); // 別ユーザー
+
+        $this->putJson("/api/v1/books/{$book->id}", [
+            'title' => '', // バリデーション的には不正
+            'genres' => [],
+        ])->assertForbidden(); // 422ではなく403
+    }
+
     // 未認証の更新は 401
     public function test_update_requires_authentication(): void
     {

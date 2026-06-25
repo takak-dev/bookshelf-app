@@ -12,7 +12,8 @@ class UpdateReviewRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // 認可はコントローラの $this->authorize('update', $review)
+        // 認可をバリデーションより前に評価（投稿者以外は検証前に403）
+        return $this->user()?->can('update', $this->route('review')) ?? false;
     }
 
     /**

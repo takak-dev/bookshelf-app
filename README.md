@@ -10,7 +10,13 @@
 - お気に入り（トグル）・レビューへのいいね（トグル・自己いいね禁止）。
 - レビュー平均評価ランキング TOP10。
 - 認証は Laravel Fortify（会員登録／ログイン／ログアウト）。
-- 公開API（認証なしの書籍CRUD・API Resource整形）。
+- 公開API（書籍CRUD・API Resource整形。読み取りは公開、書き込みは Sanctum トークン認証）。
+
+### 応用機能
+- 高度検索（キーワード／ジャンル／並び順。検索条件をページネーションに引き継ぎ）。
+- ISBN検索（Google Books API 連携で書籍情報をフォーム自動入力）。
+- マイ読書レポート（総レビュー数・読了冊数・評価分布・高評価TOP5・ジャンル別TOP5。Collectionメソッド集計）。
+- 読書計画＋リマインダー通知（状態を PHP Enum で管理。日次バッチで自動失効と3タイミングのリマインダー配信・DatabaseChannel）。
 
 ## 使用技術
 
@@ -22,7 +28,9 @@
 | DB | MySQL 8.4 |
 | 開発環境 | Laravel Sail（Docker）/ phpMyAdmin |
 | フロント | Blade / Tailwind CSS / Vite / Alpine.js |
-| 品質 | Laravel Pint（整形）/ PHPUnit（テスト・カバレッジ約83%） |
+| 外部API | Google Books API（`Illuminate\Support\Facades\Http`） |
+| 通知・バッチ | Notification（DatabaseChannel）/ Schedule + Console Command（日次バッチ） |
+| 品質 | Laravel Pint（整形）/ PHPUnit（テスト・カバレッジ約90%）/ 型宣言・PHP Enum |
 
 ## ER図
 
@@ -37,6 +45,9 @@ erDiagram
     books ||--o{ book_genre : ""
     genres ||--o{ book_genre : ""
     reviews ||--o{ review_likes : "対象(review_id)"
+    users ||--o{ reading_plans : "計画する(user_id)"
+    books ||--o{ reading_plans : "対象(book_id)"
+    users ||--o{ notifications : "受信する(notifiable)"
 
     users {
         bigint id PK "サロゲートキー"
@@ -45,9 +56,6 @@ erDiagram
         timestamp email_verified_at "メール確認日時(nullable)"
         varchar password "パスワード(ハッシュ化)"
         varchar remember_token "ログイン保持トークン(nullable)"
-        text two_factor_secret "2要素認証秘密鍵(nullable/Fortify)"
-        text two_factor_recovery_codes "2要素認証リカバリコード(nullable/Fortify)"
-        timestamp two_factor_confirmed_at "2要素認証確認日時(nullable/Fortify)"
         timestamp created_at "作成日時"
         timestamp updated_at "更新日時"
     }
@@ -55,8 +63,8 @@ erDiagram
         bigint id PK "サロゲートキー"
         varchar title "タイトル"
         varchar author "著者"
-        varchar isbn UK "ISBN-13(13桁・一意)"
-        date published_date "出版日"
+        varchar isbn UK "ISBN-13(13桁・一意・nullable)"
+        date published_date "出版日(nullable)"
         text description "説明(nullable)"
         varchar image_url "画像URL(nullable)"
         bigint user_id FK "登録ユーザーID"
@@ -97,11 +105,32 @@ erDiagram
         timestamp created_at "作成日時"
         timestamp updated_at "更新日時"
     }
+    reading_plans {
+        bigint id PK "サロゲートキー"
+        bigint user_id FK "計画者ID"
+        bigint book_id FK "対象書籍ID"
+        date target_date "期日"
+        varchar status "状態(未読/読書中/読了/期限切れ・PHP Enum)"
+        timestamp completed_at "読了日時(nullable)"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
+    }
+    notifications {
+        char id PK "UUID"
+        varchar type "通知クラス名"
+        varchar notifiable_type "通知先モデル(morph)"
+        bigint notifiable_id "通知先ID(morph)"
+        text data "通知データ(JSON)"
+        timestamp read_at "既読日時(nullable)"
+        timestamp created_at "作成日時"
+        timestamp updated_at "更新日時"
+    }
 ```
 
 ※ reviews は (user_id, book_id) で一意。book_genre / favorites / review_likes は複合主キー。外部キーは ON DELETE CASCADE。
-※ users の `two_factor_*` 3カラムは Fortify 標準（基本機能では2要素認証フローは未実装）。
-※ Laravel/Sanctum 標準テーブル（`password_reset_tokens` / `failed_jobs` / `personal_access_tokens`）はドメイン関連を持たないため ER 図からは省略（DBには存在）。応用機能（読書計画・通知）のテーブルは Phase2 で追加。
+※ reading_plans は (user_id) ごとに自分の計画を保持。status は PHP Enum（未読/読書中/読了/期限切れ）。応用版では Fortify の `two_factor_*` カラムは未使用のため削除済み。
+※ notifications は Laravel 標準の通知テーブル（UUID主キー・polymorphic な notifiable）。
+※ Laravel/Sanctum 標準テーブル（`password_reset_tokens` / `failed_jobs` / `personal_access_tokens`）はドメイン関連を持たないため ER 図からは省略（DBには存在）。
 
 ## 環境構築
 
@@ -139,15 +168,18 @@ docker run --rm -v "$(pwd):/var/www/html" -w /var/www/html \
 
 ## 公開API エンドポイント
 
-ベースURL: `/api/v1`（認証なし・JSON）
+ベースURL: `/api/v1`（JSON）。**読み取り（GET）は認証なし、書き込み（POST/PUT/DELETE）は Sanctum トークン認証必須**（未認証 401・他人の書籍 403）。
 
-| メソッド | URI | 説明 |
-|---|---|---|
-| GET | `/api/v1/books` | 書籍一覧（`keyword`／`genre`／`per_page` 対応・20件/ページ） |
-| GET | `/api/v1/books/{book}` | 書籍詳細（ジャンル・レビュー含む） |
-| POST | `/api/v1/books` | 書籍登録 |
-| PUT | `/api/v1/books/{book}` | 書籍更新 |
-| DELETE | `/api/v1/books/{book}` | 書籍削除 |
+| メソッド | URI | 認証 | 説明 |
+|---|---|---|---|
+| POST | `/api/v1/tokens` | 不要 | メール/パスワードで Bearer トークンを発行 |
+| GET | `/api/v1/books` | 不要 | 書籍一覧（`keyword`／`genre`／`per_page` 対応・20件/ページ） |
+| GET | `/api/v1/books/{book}` | 不要 | 書籍詳細（ジャンル・レビュー含む） |
+| POST | `/api/v1/books` | Sanctum | 書籍登録（登録者は認証ユーザー） |
+| PUT | `/api/v1/books/{book}` | Sanctum | 書籍更新（所有者のみ） |
+| DELETE | `/api/v1/books/{book}` | Sanctum | 書籍削除（所有者のみ） |
+
+> 利用例: `POST /api/v1/tokens` で取得したトークンを `Authorization: Bearer <token>` ヘッダに付与してアクセス。
 
 ## テスト
 

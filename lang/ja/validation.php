@@ -7,6 +7,7 @@ return [
     'unique' => 'その:attributeは既に使用されています。',
     'confirmed' => ':attributeが確認用と一致しません。',
     'date' => ':attributeは正しい日付形式で入力してください。',
+    'after_or_equal' => ':attributeには:date以降の日付を指定してください。',
     'digits' => ':attributeは:digits桁の数字で入力してください。',
     'url' => ':attributeは正しいURL形式で入力してください。',
     'array' => ':attributeは配列で指定してください。',
@@ -23,7 +24,16 @@ return [
         'numeric' => ':attributeは:min〜:maxの範囲で指定してください。',
         'string' => ':attributeは:min〜:max文字で入力してください。'],
 
+    // :date が "today" と英語表示されるのを避け、target_date は専用文言にする
+    'custom' => [
+        'target_date' => [
+            'after_or_equal' => '期日は本日以降の日付を指定してください。',
+        ],
+    ],
+
     'attributes' => [
+        'book_id' => '書籍',
+        'target_date' => '期日',
         'name' => '名前',
         'email' => 'メールアドレス',
         'password' => 'パスワード',

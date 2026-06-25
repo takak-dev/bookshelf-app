@@ -10,10 +10,15 @@ class BookApiRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
+     *
+     * 認可をバリデーションより前に評価する（非所有者には検証結果を見せず常に403）。
+     * store では route('book') が null のため全認証ユーザー可。update は所有者のみ。
      */
     public function authorize(): bool
     {
-        return true;
+        $book = $this->route('book');
+
+        return $book === null || ($this->user()?->can('update', $book) ?? false);
     }
 
     /**

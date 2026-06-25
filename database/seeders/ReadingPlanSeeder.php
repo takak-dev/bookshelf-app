@@ -43,12 +43,13 @@ class ReadingPlanSeeder extends Seeder
             ]);
         }
 
-        // 別ユーザー（鈴木花子）：所有者認可(403)の確認用
+        // 別ユーザー（鈴木花子）：所有者認可(403)の確認用＋通知の所有者分離の確認用。
+        // 期日を当日にしてバッチで on_due_date 通知を発火させる（山田太郎の通知と混ざらないことを確認できる）。
         ReadingPlan::create([
             'user_id' => $suzuki->id,
             'book_id' => $books->first()->id,
-            'target_date' => $today->copy()->addDays(5),
-            'status' => ReadingPlanStatus::Pending,
+            'target_date' => $today->copy(),
+            'status' => ReadingPlanStatus::Reading,
         ]);
     }
 }

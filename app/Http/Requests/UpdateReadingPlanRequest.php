@@ -8,7 +8,8 @@ class UpdateReadingPlanRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // 所有者認可はコントローラの $this->authorize('update', $plan)
+        // 認可をバリデーションより前に評価（所有者以外は検証前に403）
+        return $this->user()?->can('update', $this->route('plan')) ?? false;
     }
 
     /**
