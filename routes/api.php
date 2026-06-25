@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::prefix('v1')->group(function () {
+// ルート名は api.v1. を接頭辞に（web の resource('books') と books.index 等が衝突し route:cache が失敗するのを防ぐ）
+Route::prefix('v1')->name('api.v1.')->group(function () {
     // トークン発行（メール/パスワード → Bearerトークン）総当たり緩和で6回/分
     Route::post('tokens', [TokenController::class, 'store'])->middleware('throttle:6,1');
 
