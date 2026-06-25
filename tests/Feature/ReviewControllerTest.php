@@ -104,6 +104,16 @@ class ReviewControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    // 投稿者でない人は更新できない（不正入力でも認可が検証より先＝422でなく403）
+    public function test_non_author_cannot_update_even_with_invalid_input(): void
+    {
+        $review = Review::factory()->create();
+
+        $this->actingAs(User::factory()->create())
+            ->put(route('reviews.update', $review), ['rating' => 99, 'comment' => '']) // 不正入力
+            ->assertForbidden();
+    }
+
     // 投稿者は更新でき、元の書籍詳細へリダイレクト
     public function test_author_can_update_and_is_redirected_to_book_show(): void
     {

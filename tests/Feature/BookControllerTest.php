@@ -115,6 +115,16 @@ class BookControllerTest extends TestCase
             ->assertForbidden();
     }
 
+    // 作成者でない人は更新できない（不正入力でも認可が検証より先＝422でなく403）
+    public function test_non_owner_cannot_update_even_with_invalid_input(): void
+    {
+        $book = Book::factory()->create();
+
+        $this->actingAs(User::factory()->create())
+            ->put(route('books.update', $book), ['title' => '']) // 不正入力
+            ->assertForbidden();
+    }
+
     // 作成者は更新でき、書籍詳細へリダイレクトされる
     public function test_owner_can_update_and_is_redirected_to_show(): void
     {

@@ -92,6 +92,42 @@ class ReadingPlanTest extends TestCase
         ])->assertSessionHasErrors('book_id'); // 重複は拒否
     }
 
+    public function test_store_rejects_duplicate_when_expired_plan_exists(): void
+    {
+        $user = User::factory()->create();
+        $book = Book::factory()->create();
+        // 期限切れの計画が既存（再計画は新規でなく「編集で再開」する設計のため新規は不可）
+        ReadingPlan::factory()->create([
+            'user_id' => $user->id,
+            'book_id' => $book->id,
+            'status' => ReadingPlanStatus::Expired,
+        ]);
+
+        $this->actingAs($user)->post('/reading-plans', [
+            'book_id' => $book->id,
+            'target_date' => now()->addDays(7)->toDateString(),
+        ])->assertSessionHasErrors('book_id');
+    }
+
+    public function test_store_allows_new_plan_when_only_completed_plan_exists(): void
+    {
+        $user = User::factory()->create();
+        $book = Book::factory()->create();
+        // 読了済みのみ存在 → 同じ本に新たな計画を作れる（再計画）
+        ReadingPlan::factory()->create([
+            'user_id' => $user->id,
+            'book_id' => $book->id,
+            'status' => ReadingPlanStatus::Completed,
+        ]);
+
+        $this->actingAs($user)->post('/reading-plans', [
+            'book_id' => $book->id,
+            'target_date' => now()->addDays(7)->toDateString(),
+        ])->assertRedirect('/reading-plans');
+
+        $this->assertSame(2, $user->readingPlans()->where('book_id', $book->id)->count());
+    }
+
     public function test_store_rejects_past_target_date(): void
     {
         $user = User::factory()->create();
@@ -142,6 +178,16 @@ class ReadingPlanTest extends TestCase
 
         $this->actingAs(User::factory()->create()) // 別ユーザー
             ->put("/reading-plans/{$plan->id}", ['target_date' => now()->addDays(3)->toDateString()])
+            ->assertForbidden();
+    }
+
+    public function test_non_owner_update_is_forbidden_even_with_invalid_input(): void
+    {
+        $plan = ReadingPlan::factory()->create(['status' => ReadingPlanStatus::Pending]);
+
+        // 不正入力（過去日）でも認可が検証より先＝422でなく403
+        $this->actingAs(User::factory()->create())
+            ->put("/reading-plans/{$plan->id}", ['target_date' => now()->subDay()->toDateString()])
             ->assertForbidden();
     }
 

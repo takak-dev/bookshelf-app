@@ -21,12 +21,14 @@ class StoreReadingPlanRequest extends FormRequest
         return [
             'book_id' => [
                 'required', 'integer', 'exists:books,id',
-                // 同一書籍で未完了(未読/読書中)の計画が既存なら重複不可（Q62・暫定）
+                // 同一書籍で「未読/読書中/期限切れ」の計画が既存なら新規作成不可。
+                // 読了(Completed)のみ新規を許可（再計画）。期限切れは新規でなく「編集で再開」する設計（Q62）。
                 Rule::unique('reading_plans', 'book_id')
                     ->where('user_id', $this->user()->id)
                     ->whereIn('status', [
                         ReadingPlanStatus::Pending->value,
                         ReadingPlanStatus::Reading->value,
+                        ReadingPlanStatus::Expired->value,
                     ]),
             ],
             'target_date' => ['required', 'date', 'after_or_equal:today'],

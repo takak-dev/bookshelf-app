@@ -15,6 +15,9 @@ class BookSeeder extends Seeder
     public function run(): void
     {
         $users = User::all();
+        // 1冊目は山田太郎を登録者に固定（書籍CRUD・自己レビュー禁止の動作確認を毎回再現可能にするため）。
+        // 残りはランダム割当（要件「複数ユーザーの所有書籍をレポートで表示」を維持）。
+        $yamada = $users->firstWhere('email', 'yamada@example.com');
 
         $books = [
             ['title' => '吾輩は猫である', 'author' => '夏目漱石', 'isbn' => '9784101010014', 'published_date' => '1905-01-01',
@@ -43,6 +46,10 @@ class BookSeeder extends Seeder
          * Modelオブジェクトによって変数が上書きされ、型エラーを引き起こすため
          * 配列側はあえて $data として区別しています。
          */
+        // created_at は TIMESTAMP 型（1970–2038）で古い出版日(1905等)を直接は使えないため、
+        // 出版日の古い順の順位で登録日時を1日ずつずらす（出版が新しい本ほど登録日時も新しい＝新着/古い順を目視確認可能）。
+        $publishedOrder = collect($books)->pluck('published_date')->sort()->values();
+
         foreach ($books as $index => $data) {
             $book = Book::firstOrCreate(
                 ['isbn' => $data['isbn']],
@@ -52,7 +59,9 @@ class BookSeeder extends Seeder
                     'published_date' => $data['published_date'],
                     'description' => $data['description'],
                     'image_url' => 'https://placehold.co/200x300/e2e8f0/475569?text='.($index + 1),
-                    'user_id' => $users->random()->id,
+                    'user_id' => $index === 0 ? $yamada->id : $users->random()->id,
+                    // 出版日の順位で登録日時をずらす（出版が新しい本ほど登録日時も新しい）
+                    'created_at' => now()->subDays($publishedOrder->count() - 1 - $publishedOrder->search($data['published_date'])),
                 ],
             );
 
