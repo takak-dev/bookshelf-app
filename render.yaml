@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: bookshelf
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      # 値は Render 管理画面で設定（`php artisan key:generate --show` の出力）
+      - key: APP_KEY
+        sync: false
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: DB_CONNECTION
+        value: pgsql
+      # 任意（未設定なら ISBN 検索はキー無し動作＝レート制限に当たりやすい）
+      - key: GOOGLE_BOOKS_KEY
+        sync: false
+      - key: DB_HOST
+        fromDatabase:
+          name: bookshelf-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: bookshelf-db
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: bookshelf-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: bookshelf-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: bookshelf-db
+          property: password
+
+databases:
+  - name: bookshelf-db
+    plan: free
+    databaseName: bookshelf
+    user: bookshelf

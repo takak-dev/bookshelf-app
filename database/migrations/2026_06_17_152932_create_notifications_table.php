@@ -15,7 +15,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('type');
             $table->morphs('notifiable');
-            $table->text('data');
+            $table->json('data'); // json型: 通知データのJSONクエリを MySQL/Postgres 両対応にする
             $table->timestamp('read_at')->nullable();
             $table->timestamps();
         });
