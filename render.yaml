@@ -11,6 +11,9 @@ services:
         value: production
       - key: APP_DEBUG
         value: "false"
+      # 公開URL（https）。アセットURLを https で生成し mixed content を防ぐ
+      - key: APP_URL
+        value: https://bookshelf-ky7g.onrender.com
       # 値は Render 管理画面で設定（`php artisan key:generate --show` の出力）
       - key: APP_KEY
         sync: false
