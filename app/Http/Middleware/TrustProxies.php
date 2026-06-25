@@ -10,9 +10,12 @@ class TrustProxies extends Middleware
     /**
      * The trusted proxies for this application.
      *
+     * Render 等の PaaS は LB で TLS を終端し X-Forwarded-Proto を付与する。
+     * '*' で信頼すると https を正しく検出でき、アセットURLが https になる（mixed content 回避）。
+     *
      * @var array<int, string>|string|null
      */
-    protected $proxies;
+    protected $proxies = '*';
 
     /**
      * The headers that should be used to detect proxies.
