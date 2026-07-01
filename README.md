@@ -159,6 +159,39 @@ docker run --rm -v "$(pwd):/var/www/html" -w /var/www/html \
 初期ユーザー（シーダー投入・パスワードは全員 `password`）：
 `yamada@example.com` / `suzuki@example.com` / `tanaka@example.com` / `sato@example.com` / `takahashi@example.com`
 
+## ISBN検索（Google Books API）
+
+書籍登録・編集フォームの ISBN 検索は [Google Books API](https://developers.google.com/books) を利用します。**APIキーは任意**で、未設定でも動作しますが、以下の既知の制限があります。
+
+### 既知の制限：APIキー未設定だと 429 で検索できないことがある
+
+- キー無しアクセスは送信元 IP 単位の共有クォータで判定されるため、共有環境（クラウド／社内ネットワーク等）では **HTTP 429（Too Many Requests）** で弾かれ、ISBN 検索が結果を返せないことがあります。
+- アプリは通信失敗・該当なし時に安全に `null` を返す実装のため、フォームに自動入力されないだけでエラー画面にはなりません（`app/Services/GoogleBooksClient.php`）。
+- テストは `Http::fake()` で外部 API をモックするため、この制限の影響を受けません。
+
+### 解決策：APIキーを設定する
+
+APIキーを設定するとプロジェクト単位のクォータになり、429 を回避できます。
+
+1. [Google Cloud Console](https://console.cloud.google.com/) でプロジェクトを作成（既存でも可）
+2. 「APIとサービス」→「ライブラリ」で **Books API** を有効化
+3. 「認証情報」→「認証情報を作成」→「**APIキー**」を発行
+4. `.env` に追記：
+   ```env
+   GOOGLE_BOOKS_KEY=取得したAPIキー
+   ```
+5. 設定を反映：
+   ```bash
+   ./vendor/bin/sail artisan config:clear
+   ```
+
+環境変数（`config/services.php` の `google_books`）：
+
+| 変数 | 必須 | 既定値 |
+|---|---|---|
+| `GOOGLE_BOOKS_KEY` | 任意 | （なし・未設定でも動作） |
+| `GOOGLE_BOOKS_ENDPOINT` | 任意 | `https://www.googleapis.com/books/v1/volumes` |
+
 ## 開発環境URL
 
 | 用途 | URL |
