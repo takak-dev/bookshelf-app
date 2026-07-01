@@ -20,8 +20,10 @@ return new class extends Migration
             $table->string('status')->default(ReadingPlanStatus::Pending->value);
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
-            // 重複防止はFormRequest側（未完了1件まで）で制御＝DB unique は付けない（完了/失効後の再計画を許すため）
-            //
+            // 重複防止はFormRequest側で制御＝DB unique は付けない。
+            // 同一(user_id, book_id)は読了後の再計画で複数行あり得るため単純uniqueは不可。
+            // 未読/読書中/期限切れが1件でもあれば新規不可、読了(Completed)のみ新規許可。
+            // 期限切れは新規でなく既存計画を編集して再開する設計（PM回答）。
         });
     }
 

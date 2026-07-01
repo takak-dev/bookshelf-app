@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -99,6 +100,21 @@ class IsbnSearchTest extends TestCase
             ->getJson('/books/isbn/9784101010014');
 
         // 通信失敗時も error キーで返す（フロー継続）
+        $response->assertOk();
+        $response->assertJsonStructure(['error']);
+    }
+
+    public function test_returns_error_when_api_times_out(): void
+    {
+        // タイムアウト等で ConnectionException が投げられるケースをモック
+        Http::fake(function (): void {
+            throw new ConnectionException('Connection timed out');
+        });
+
+        $response = $this->actingAs(User::factory()->create())
+            ->getJson('/books/isbn/9784101010014');
+
+        // 接続失敗時も 500 ではなく error キーで返す（フロー継続）
         $response->assertOk();
         $response->assertJsonStructure(['error']);
     }
