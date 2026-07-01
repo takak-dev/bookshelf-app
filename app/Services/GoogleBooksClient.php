@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
 class GoogleBooksClient
@@ -18,7 +19,14 @@ class GoogleBooksClient
             $query['key'] = $key; // キーは設定時のみ付与
         }
 
-        $response = Http::get(config('services.google_books.endpoint'), $query);
+        try {
+            $response = Http::timeout(5)->retry(2, 200, throw: false)->get(
+                config('services.google_books.endpoint'),
+                $query
+            );
+        } catch (ConnectionException $e) {
+            return null; // タイムアウト/接続失敗は該当なし相当
+        }
 
         if ($response->failed()) {
             return null;

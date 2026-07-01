@@ -26,7 +26,12 @@ class ReviewController extends Controller
                 'comment' => $request->validated('comment'),
             ]);
         } catch (QueryException $e) {
-            return redirect()->back()->with('error', 'この書籍には既にレビューを投稿しています。');
+            // 競合で validation をすり抜けた重複(unique違反)のみ握る。他のDBエラーは握り潰さない
+            if (($e->errorInfo[1] ?? null) === 1062) {
+                return redirect()->back()->with('error', 'この書籍には既にレビューを投稿しています。');
+            }
+
+            throw $e;
         }
 
         return redirect()->route('books.show', $book)->with('success', 'レビューを投稿しました。');
