@@ -135,7 +135,7 @@ erDiagram
 ## 環境構築
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/takak-dev/bookshelf-app.git
 cd bookshelf-app
 
 cp .env.example .env
