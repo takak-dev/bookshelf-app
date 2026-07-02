@@ -27,21 +27,7 @@ class BookController extends Controller
         $query = Book::query()
             ->with('genres')
             ->withAvg('reviews', 'rating')
-            ->when(
-                $filters['keyword'] ?? null,
-                fn ($query, $keyword) => $query->where(
-                    fn ($query) => $query
-                        ->where('title', 'like', "%{$keyword}%")
-                        ->orWhere('author', 'like', "%{$keyword}%")
-                )
-            )
-            ->when(
-                $filters['genre'] ?? null,
-                fn ($query, $genre) => $query->whereHas(
-                    'genres',
-                    fn ($query) => $query->where('genres.id', $genre)
-                )
-            );
+            ->search($filters['keyword'] ?? null, $filters['genre'] ?? null);
 
         match ($sort) {
             'newest' => $query->latest(),

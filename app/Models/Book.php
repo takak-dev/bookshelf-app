@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -67,5 +68,24 @@ class Book extends Model
     public function favoritedByUsers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'favorites')->withTimestamps();
+    }
+
+    /**
+     * キーワード(タイトル/著者部分一致)とジャンルで絞り込む。null/空は無視。
+     *
+     * @param  Builder<Book>  $query
+     * @return Builder<Book>
+     */
+    public function scopeSearch(Builder $query, ?string $keyword, null|int|string $genre): Builder
+    {
+        return $query
+            ->when($keyword !== null && $keyword !== '', fn (Builder $q) => $q->where(
+                fn (Builder $sub) => $sub
+                    ->where('title', 'like', "%{$keyword}%")
+                    ->orWhere('author', 'like', "%{$keyword}%")
+            ))
+            ->when($genre !== null && $genre !== '', fn (Builder $q) => $q->whereHas(
+                'genres', fn (Builder $sub) => $sub->where('genres.id', (int) $genre)
+            ));
     }
 }
