@@ -25,16 +25,7 @@ class BookController extends Controller
             ->with('genres')
             ->withCount('reviews')
             ->withAvg('reviews', 'rating')
-            ->when($request->filled('keyword'), function ($query) use ($request) {
-                $keyword = $request->input('keyword');
-                $query->where(function ($q) use ($keyword) {
-                    $q->where('title', 'like', "%{$keyword}%")
-                        ->orWhere('author', 'like', "%{$keyword}%");
-                });
-            })
-            ->when($request->filled('genre'), function ($query) use ($request) {
-                $query->whereHas('genres', fn ($q) => $q->where('genres.id', $request->input('genre')));
-            })
+            ->search($request->input('keyword'), $request->input('genre'))
             ->latest()
             ->paginate($perpage)
             ->appends($request->query()); // 検索条件(keyword/genre)をページネーションリンクへ引き継ぐ
